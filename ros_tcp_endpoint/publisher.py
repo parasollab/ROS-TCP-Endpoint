@@ -51,10 +51,10 @@ class RosPublisher(RosSender):
         Returns:
             None: Explicitly return None so behaviour can be
         """
-        # message_type = type(self.msg)
-        # message = deserialize_message(data, message_type)
+        message_type = type(self.msg)
+        message = deserialize_message(data, message_type)
 
-        self.pub.publish(data)
+        self.pub.publish(message)
 
         return None
 
