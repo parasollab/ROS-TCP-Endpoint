@@ -101,6 +101,10 @@ class TcpServer(Node):
 
             try:
                 (conn, (ip, port)) = tcp_server.accept()
+                # Disable Nagle's algorithm: this link carries many small
+                # messages (joint states, poses) where batching adds
+                # tens to hundreds of ms of latency over Wi-Fi.
+                conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 ClientThread(conn, self, ip, port).start()
             except socket.timeout as err:
                 self.logerr("ros_tcp_endpoint.TcpServer: socket timeout")
