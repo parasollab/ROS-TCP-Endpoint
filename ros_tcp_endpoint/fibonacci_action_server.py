@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+# Copyright 2026 Unity Technologies
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 
 """Small ROS 2 action server used by the Unity action-client sample."""
 
@@ -52,7 +66,6 @@ class FibonacciActionServer(Node):
     def execute_callback(self, goal_handle):
         order = goal_handle.request.order
         sequence = [0] if order == 1 else [0, 1]
-        feedback = Fibonacci.Feedback()
         period = self.get_parameter("feedback_period").value
 
         while len(sequence) < order:
@@ -62,7 +75,7 @@ class FibonacciActionServer(Node):
                 return self._result(sequence)
 
             sequence.append(sequence[-1] + sequence[-2])
-            feedback.partial_sequence = sequence.copy()
+            feedback = self._feedback(sequence)
             goal_handle.publish_feedback(feedback)
             self.get_logger().info("Feedback: %s" % sequence)
 
@@ -80,6 +93,12 @@ class FibonacciActionServer(Node):
             goal_handle.succeed()
             self.get_logger().info("Goal succeeded: %s" % sequence)
         return self._result(sequence)
+
+    @staticmethod
+    def _feedback(sequence):
+        feedback = Fibonacci.Feedback()
+        feedback.sequence = sequence.copy()
+        return feedback
 
     @staticmethod
     def _result(sequence):
