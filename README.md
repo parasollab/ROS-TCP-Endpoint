@@ -8,6 +8,25 @@
 
 Instructions and examples on how to use this ROS package can be found on the [Unity Robotics Hub](https://github.com/Unity-Technologies/Unity-Robotics-Hub/blob/master/tutorials/ros_unity_integration/README.md) repository.
 
+## ROS 2 action demo
+
+Version 0.7.1 includes a standalone Fibonacci server for testing the Unity ROS 2
+action client without MoveIt or a robot:
+
+```bash
+cd /path/to/your_ros2_workspace
+source /opt/ros/jazzy/setup.bash
+colcon build --symlink-install --packages-select ros_tcp_endpoint
+source install/setup.bash
+ros2 launch ros_tcp_endpoint action_demo.py
+```
+
+This starts the TCP endpoint on port 10000 and a `/fibonacci` action server.
+Import **ROS 2 Action Client Demo** from the ROS TCP Connector package's Samples
+tab in Unity's Package Manager, add `Ros2ActionClientDemo` to a GameObject, and
+enter Play mode. Its on-screen controls exercise success, rejection, feedback,
+abort, cancellation, errors, and disconnects.
+
 ## Community and Feedback
 
 The Unity Robotics projects are open-source and we encourage and welcome contributions.

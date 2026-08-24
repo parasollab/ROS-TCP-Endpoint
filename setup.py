@@ -12,7 +12,10 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         (share_dir, ["package.xml"]),
-        (os.path.join(share_dir, "launch"), ["launch/endpoint.py"]),
+        (
+            os.path.join(share_dir, "launch"),
+            ["launch/endpoint.py", "launch/action_demo.py"],
+        ),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
@@ -23,7 +26,9 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "default_server_endpoint = ros_tcp_endpoint.default_server_endpoint:main"
+            "default_server_endpoint = ros_tcp_endpoint.default_server_endpoint:main",
+            "fibonacci_action_server = "
+            "ros_tcp_endpoint.fibonacci_action_server:main",
         ]
     },
 )

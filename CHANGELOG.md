@@ -30,6 +30,7 @@ Added Sonarqube scanner
 - Added `ros2_actions_v1` capability negotiation.
 - Added concurrent ROS 2 action goals, feedback, result retrieval, cancellation,
   and explicit protocol errors for Unity action clients.
+- Added a standalone Fibonacci action server and combined endpoint demo launch.
 
 ### Changed
 
