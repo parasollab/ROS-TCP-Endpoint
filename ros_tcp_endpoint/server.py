@@ -30,6 +30,7 @@ from .subscriber import RosSubscriber
 from .publisher import RosPublisher
 from .service import RosService
 from .unity_service import UnityService
+from .action import RosAction
 
 
 class TcpServer(Node):
@@ -70,6 +71,7 @@ class TcpServer(Node):
         self.subscribers_table = {}
         self.ros_services_table = {}
         self.unity_services_table = {}
+        self.ros_actions_table = {}
         self.buffer_size = buffer_size
         self.connections = connections
         self.syscommands = SysCommands(self)
@@ -118,7 +120,7 @@ class TcpServer(Node):
         self.unity_tcp_sender.send_unity_service_response(srv_id, data)
 
     def handle_syscommand(self, topic, data):
-        function = getattr(self.syscommands, topic[2:])
+        function = getattr(self.syscommands, topic[2:], None)
         if function is None:
             self.send_unity_error("Don't understand SysCommand.'{}'".format(topic))
         else:
@@ -184,6 +186,8 @@ class TcpServer(Node):
             ros_node.destroy_node()
         for ros_node in self.unity_services_table.values():
             ros_node.destroy_node()
+        for ros_action in self.ros_actions_table.values():
+            ros_action.unregister()
 
         self.destroy_node()
 
@@ -305,6 +309,63 @@ class SysCommands:
             self.tcp_server.executor.add_node(new_service)
 
         self.tcp_server.loginfo("RegisterUnityService({}, {}) OK".format(topic, message_class))
+
+    def ros_action(self, action_name, message_name):
+        if action_name == "":
+            self.tcp_server.unity_tcp_sender.send_action_error(
+                action_name, "", "invalid_action_name", "Action name cannot be blank"
+            )
+            return
+
+        action_class = self.resolve_message_name(message_name, "action")
+        if action_class is None:
+            self.tcp_server.unity_tcp_sender.send_action_error(
+                action_name,
+                "",
+                "unknown_action_type",
+                "Unknown action class '{}'".format(message_name),
+            )
+            return
+
+        old_action = self.tcp_server.ros_actions_table.get(action_name)
+        if old_action is not None and old_action.message_name == message_name:
+            self.tcp_server.unity_tcp_sender.send_action_registered(action_name)
+            return
+        try:
+            if old_action is not None:
+                old_action.unregister()
+            self.tcp_server.ros_actions_table[action_name] = RosAction(
+                action_name, action_class, message_name, self.tcp_server
+            )
+        except Exception as exc:
+            self.tcp_server.ros_actions_table.pop(action_name, None)
+            self.tcp_server.unity_tcp_sender.send_action_error(
+                action_name, "", "action_registration_failed", str(exc)
+            )
+            return
+        self.tcp_server.unity_tcp_sender.send_action_registered(action_name)
+        self.tcp_server.loginfo(
+            "RegisterRosAction({}, {}) OK".format(action_name, action_class)
+        )
+
+    def remove_ros_action(self, action_name):
+        old_action = self.tcp_server.ros_actions_table.pop(action_name, None)
+        if old_action is not None:
+            try:
+                old_action.unregister()
+            except Exception as exc:
+                self.tcp_server.unity_tcp_sender.send_action_error(
+                    action_name, "", "action_removal_failed", str(exc)
+                )
+
+    def action_cancel(self, action_name, goal_id):
+        action = self.tcp_server.ros_actions_table.get(action_name)
+        if action is None:
+            self.tcp_server.unity_tcp_sender.send_action_error(
+                action_name, goal_id, "unregistered_action", "Action is not registered"
+            )
+            return
+        action.cancel_goal(goal_id)
 
     def response(self, srv_id):  # the next message is a service response
         self.tcp_server.pending_srv_id = srv_id

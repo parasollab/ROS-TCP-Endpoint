@@ -17,6 +17,7 @@ import socket
 import time
 import threading
 import json
+from types import SimpleNamespace
 
 from rclpy.node import Node
 from rclpy.serialization import deserialize_message
@@ -119,6 +120,64 @@ class UnityTcpSender:
             del self.services_waiting[srv_id]
 
         thread_pauser.resume_with_result(data)
+
+    def _send_action_command(self, command_name, message=None, destination=None, **params):
+        if self.queue is None:
+            return
+        command = ClientThread.serialize_command(
+            command_name, SimpleNamespace(**params)
+        )
+        if message is not None:
+            command += ClientThread.serialize_message(destination, message)
+        self.queue.put(command)
+
+    def send_action_registered(self, action_name):
+        self._send_action_command("__action_registered", action_name=action_name)
+
+    def send_action_goal_response(self, action_name, goal_id, accepted, ros_goal_id):
+        self._send_action_command(
+            "__action_goal_response",
+            action_name=action_name,
+            goal_id=goal_id,
+            accepted=accepted,
+            ros_goal_id=ros_goal_id,
+        )
+
+    def send_action_feedback(self, action_name, goal_id, feedback):
+        self._send_action_command(
+            "__action_feedback",
+            feedback,
+            action_name,
+            action_name=action_name,
+            goal_id=goal_id,
+        )
+
+    def send_action_result(self, action_name, goal_id, status, result):
+        self._send_action_command(
+            "__action_result",
+            result,
+            action_name,
+            action_name=action_name,
+            goal_id=goal_id,
+            status=status,
+        )
+
+    def send_action_cancel_response(self, action_name, goal_id, return_code):
+        self._send_action_command(
+            "__action_cancel_response",
+            action_name=action_name,
+            goal_id=goal_id,
+            return_code=return_code,
+        )
+
+    def send_action_error(self, action_name, goal_id, code, message):
+        self._send_action_command(
+            "__action_error",
+            action_name=action_name,
+            goal_id=goal_id,
+            code=code,
+            message=message,
+        )
 
     def get_registered_topic(self, topic):
         if topic in self.tcp_server.publishers_table:
@@ -229,10 +288,11 @@ class SysCommand_TopicsResponse:
 
 class SysCommand_Handshake:
     def __init__(self, metadata):
-        self.version = "v0.7.0"
+        self.version = "v0.7.1"
         self.metadata = json.dumps(metadata.__dict__)
 
 
 class SysCommand_Handshake_Metadata:
     def __init__(self):
         self.protocol = "ROS2"
+        self.capabilities = ["ros2_actions_v1"]

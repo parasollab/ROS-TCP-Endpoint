@@ -23,6 +23,20 @@ Added Sonarqube scanner
 ### Fixed
 
 
+## [0.7.1] - 2026-08-24
+
+### Added
+
+- Added `ros2_actions_v1` capability negotiation.
+- Added concurrent ROS 2 action goals, feedback, result retrieval, cancellation,
+  and explicit protocol errors for Unity action clients.
+
+### Changed
+
+- Action command/payload responses are queued atomically so concurrent callbacks
+  cannot interleave protocol frames.
+
+
 ## [0.7.0] - 2022-02-01
 
 ### Added

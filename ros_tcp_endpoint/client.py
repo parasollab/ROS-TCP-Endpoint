@@ -43,6 +43,7 @@ class ClientThread(threading.Thread):
         self.tcp_server = tcp_server
         self.incoming_ip = incoming_ip
         self.incoming_port = incoming_port
+        self.pending_action_goal = None
         threading.Thread.__init__(self)
 
     @staticmethod
@@ -194,7 +195,28 @@ class ClientThread(threading.Thread):
                 destination, data = self.read_message(self.conn)
 
                 # Process this message that was sent from Unity
-                if self.tcp_server.pending_srv_id is not None:
+                if self.pending_action_goal is not None:
+                    action_name = self.pending_action_goal["action_name"]
+                    goal_id = self.pending_action_goal["goal_id"]
+                    self.pending_action_goal = None
+                    action = self.tcp_server.ros_actions_table.get(action_name)
+                    if destination != action_name:
+                        self.tcp_server.unity_tcp_sender.send_action_error(
+                            action_name,
+                            goal_id,
+                            "malformed_goal",
+                            "Goal payload destination does not match action name",
+                        )
+                    elif action is None:
+                        self.tcp_server.unity_tcp_sender.send_action_error(
+                            action_name,
+                            goal_id,
+                            "unregistered_action",
+                            "Action is not registered",
+                        )
+                    else:
+                        action.send_goal(goal_id, data)
+                elif self.tcp_server.pending_srv_id is not None:
                     # if we've been told that the next message will be a service request/response, process it as such
                     if self.tcp_server.pending_srv_is_request:
                         self.send_ros_service_request(
@@ -208,6 +230,20 @@ class ClientThread(threading.Thread):
                 elif destination == "":
                     # ignore this keepalive message, listen for more
                     pass
+                elif destination == "__action_goal":
+                    try:
+                        message_json = data.decode("utf-8").rstrip("\x00")
+                        header = json.loads(message_json)
+                        if not header.get("action_name") or not header.get("goal_id"):
+                            raise ValueError("action_name and goal_id are required")
+                        self.pending_action_goal = header
+                    except (UnicodeDecodeError, ValueError, TypeError) as exc:
+                        self.tcp_server.unity_tcp_sender.send_action_error(
+                            "",
+                            "",
+                            "malformed_goal_header",
+                            str(exc),
+                        )
                 elif destination.startswith("__"):
                     # handle a system command, such as registering new topics
                     self.tcp_server.handle_syscommand(destination, data)
