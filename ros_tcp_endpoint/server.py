@@ -124,7 +124,12 @@ class TcpServer(Node):
         if function is None:
             self.send_unity_error("Don't understand SysCommand.'{}'".format(topic))
         else:
-            message_json = data.decode("utf-8")[:-1]
+            # Unity appends a CDR null terminator to strings only when its ROS2 scripting
+            # define is set. The old [:-1] assumed it was always there and silently ate the
+            # closing brace of every sys-command from a ROS1-mode build, so nothing ever
+            # registered. rstrip is correct either way, and matches how client.py already
+            # handles the __action_goal header.
+            message_json = data.decode("utf-8").rstrip("\x00")
             params = json.loads(message_json)
             function(**params)
 
