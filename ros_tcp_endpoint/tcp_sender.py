@@ -121,14 +121,18 @@ class UnityTcpSender:
 
         thread_pauser.resume_with_result(data)
 
-    def _send_action_command(self, command_name, message=None, destination=None, **params):
+    def _send_action_command(
+        self, command_name, payload=None, payload_destination=None, **params
+    ):
         if self.queue is None:
             return
         command = ClientThread.serialize_command(
             command_name, SimpleNamespace(**params)
         )
-        if message is not None:
-            command += ClientThread.serialize_message(destination, message)
+        if payload is not None:
+            command += ClientThread.serialize_message(
+                payload_destination, payload
+            )
         self.queue.put(command)
 
     def send_action_registered(self, action_name):
@@ -146,8 +150,8 @@ class UnityTcpSender:
     def send_action_feedback(self, action_name, goal_id, feedback):
         self._send_action_command(
             "__action_feedback",
-            feedback,
-            action_name,
+            payload=feedback,
+            payload_destination=action_name,
             action_name=action_name,
             goal_id=goal_id,
         )
@@ -155,8 +159,8 @@ class UnityTcpSender:
     def send_action_result(self, action_name, goal_id, status, result):
         self._send_action_command(
             "__action_result",
-            result,
-            action_name,
+            payload=result,
+            payload_destination=action_name,
             action_name=action_name,
             goal_id=goal_id,
             status=status,

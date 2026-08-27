@@ -17,6 +17,7 @@ import re
 
 from rclpy.serialization import deserialize_message
 
+from . import msg_debug
 from .communication import RosSender
 
 
@@ -52,7 +53,14 @@ class RosService(RosSender):
             service response
         """
         message_type = type(self.req)
-        message = deserialize_message(data, message_type)
+        try:
+            message = deserialize_message(data, message_type)
+        except Exception as error:
+            msg_debug.report_failure(
+                self.get_logger(), "service " + self.service_topic, message_type, data, error
+            )
+            raise
+        msg_debug.report(self.get_logger(), "service " + self.service_topic, data, message)
 
         if not self.cli.service_is_ready():
             self.get_logger().error(

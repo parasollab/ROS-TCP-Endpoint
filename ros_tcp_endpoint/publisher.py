@@ -17,6 +17,7 @@ import re
 
 from rclpy.serialization import deserialize_message
 
+from . import msg_debug
 from .communication import RosSender
 
 
@@ -34,6 +35,7 @@ class RosPublisher(RosSender):
             message_class: The message class in catkin workspace
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
+        self.topic = topic
         strippedTopic = re.sub("[^A-Za-z0-9_]+", "", topic)
         node_name = f"{strippedTopic}_RosPublisher"
         RosSender.__init__(self, node_name)
@@ -52,7 +54,14 @@ class RosPublisher(RosSender):
             None: Explicitly return None so behaviour can be
         """
         message_type = type(self.msg)
-        message = deserialize_message(data, message_type)
+        try:
+            message = deserialize_message(data, message_type)
+        except Exception as error:
+            msg_debug.report_failure(
+                self.get_logger(), "publish " + self.topic, message_type, data, error
+            )
+            raise
+        msg_debug.report(self.get_logger(), "publish " + self.topic, data, message)
 
         self.pub.publish(message)
 
