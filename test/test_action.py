@@ -141,6 +141,7 @@ def test_rejected_goal_has_no_result_request():
 def test_unavailable_server_returns_explicit_error():
     action_client = Mock()
     action_client.server_is_ready.return_value = False
+    action_client.wait_for_server.return_value = False
     action, server = make_action(action_client)
 
     action.send_goal("unavailable", b"cdr")

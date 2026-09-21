@@ -21,6 +21,12 @@ from rclpy.serialization import deserialize_message
 class RosAction:
     """ROS 2 action client owned by the TCP endpoint."""
 
+    # How long send_goal waits for DDS discovery of the action server before
+    # reporting server_unavailable. Unity typically sends its first goal right
+    # after registration, before the freshly created ActionClient has discovered
+    # the server's topics/services, so an instant server_is_ready() check races.
+    SERVER_WAIT_SEC = 5.0
+
     def __init__(self, action_name, action_class, message_name, tcp_server):
         self.action_name = action_name
         self.action_class = action_class
@@ -40,10 +46,18 @@ class RosAction:
             self.goal_handles[goal_id] = None
             self.feedback_backlog[goal_id] = []
 
-        if not self.client.server_is_ready():
+        # wait_for_server only polls server_is_ready() with sleeps (no spinning),
+        # so it is safe to call from the TCP receive thread.
+        if not self.client.server_is_ready() and not self.client.wait_for_server(
+            timeout_sec=self.SERVER_WAIT_SEC
+        ):
             self._remove_goal(goal_id)
             self._send_error(
-                goal_id, "server_unavailable", "Action server is not ready"
+                goal_id,
+                "server_unavailable",
+                "Action server is not ready (waited {:.1f}s)".format(
+                    self.SERVER_WAIT_SEC
+                ),
             )
             return
 
